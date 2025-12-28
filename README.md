@@ -60,7 +60,8 @@ Hệ thống được thiết kế với luồng trải nghiệm người dùng 
 **1. Clone dự án:**
 ```bash
 git clone https://github.com/Krisaleth/bookstore-management.git
-cd bookstore-project
+cd bookstore-management
+```
 
 **2. Khởi chạy hệ thống: Tại thư mục gốc (nơi chứa file docker-compose.yml), chạy lệnh:**
 ```bash
