@@ -1,0 +1,74 @@
+version: '3.8'
+
+# Development docker-compose với hỗ trợ hot reload cho cả FE và BE
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: bookstore-mysql-dev
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: bookstore_db
+      MYSQL_USER: bookstore_user
+      MYSQL_PASSWORD: bookstore_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data_dev:/var/lib/mysql
+    networks:
+      - bookstore-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  bookstore-api-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile # Đảm bảo Dockerfile sử dụng 'spring-boot:run' hoặc tương đương cho dev
+    container_name: bookstore-api-dev
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/bookstore_db?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: bookstore_user
+      SPRING_DATASOURCE_PASSWORD: bookstore_pass
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_PROFILES_ACTIVE: dev
+      JWT_SECRET: mySecretKeyForJWTTokenGenerationThatIsAtLeast256BitsLongForHS256Algorithm
+    ports:
+      - "8080:8080"
+      - "5005:5005" # Cổng để Remote Debug nếu cần
+    volumes:
+      - .:/app # Mount code backend để hỗ trợ dev mode
+      - ~/.m2:/root/.m2 # Cache các file maven để build nhanh hơn
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - bookstore-network
+
+  bookstore-frontend-dev:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev # Sử dụng Dockerfile riêng cho môi trường dev
+    container_name: bookstore-frontend-dev
+    environment:
+      NEXT_PUBLIC_API_URL: http://bookstore-api-dev:8080/api
+      NODE_ENV: development
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app # Mount thư mục frontend
+      - /app/node_modules # Giữ lại node_modules bên trong container (không bị ghi đè bởi máy thật)
+    depends_on:
+      - bookstore-api-dev
+    networks:
+      - bookstore-network
+
+volumes:
+  mysql_data_dev:
+    driver: local
+
+networks:
+  bookstore-network:
+    driver: bridge
